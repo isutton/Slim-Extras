@@ -32,34 +32,53 @@
  * HaangaView
  *
  * The HaangaView is a custom View class that renders templates using the Haanga
- * template language (http://haanga.org/).
- *
- * Currently, to use HaangaView, developer must instantiate this class and pass these params:
- * - path to Haanga directory which contain `lib`
- * - path to templates directory
- * - path to compiled templates directory
+ * template language (http://haanga.org/). This class expects the contents of the
+ * 'lib' directory of Haanga distribution to be present somewhere in the 
+ * include_path (since it's a bad practice to put it hard coded anyways).
  *
  * Example:
  * {{{
  *      require_once 'views/HaangaView.php';
+ *
  *      Slim::init(array(
- *          'view' => new HaangaView('/path/to/Haanga/dir', '/path/to/templates/dir', '/path/to/compiled/dir')
+ *          'templates.cache' => '...', //Defaults to "cache"
+ *          'view'            => 'HaangaView',
  *      ));
  * }}}
  *
  * @package Slim
  * @author  Isman Firmansyah
+ * @author  Igor Sutton
  */
 class HaangaView extends Slim_View {
+
+    protected $cacheDirectory;
+
+    public function getCacheDirectory() {
+        return $this->cacheDirectory;
+    }
+
+    public function setCacheDirectory( $dir ) {
+        if ( !is_dir($dir) ) {
+            throw new RuntimeException('Cannot set Haanga cache directory to: ' . $dir . '. Directory does not exist.');
+        }
+        $this->cacheDirectory = rtrim($dir, '/');
+    }
 
     /**
      * Configure Haanga environment
      */
-    public function __construct( $haangaDir, $templatesDir, $compiledDir ) {
-        require_once $haangaDir . '/lib/Haanga.php';
+    public function __construct() {
+        require_once 'Haanga.php'; //Assumes file is in the include_path
+
+        $cacheDirectory = Slim::config('templates.cache') or "cache";
+
+        $this->setCacheDirectory( realpath($cacheDirectory) );
+        $this->setTemplatesDirectory( realpath( Slim::config('templates.path') ) );
+
         Haanga::configure(array(
-            'template_dir' => $templatesDir,
-            'cache_dir' => $compiledDir
+            'template_dir' => $this->getTemplatesDirectory(),
+            'cache_dir'    => $this->getCacheDirectory(),
         ));
     }
 
@@ -75,4 +94,3 @@ class HaangaView extends Slim_View {
         return Haanga::load($template, $this->data);
     }
 }
-?>
